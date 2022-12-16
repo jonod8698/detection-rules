@@ -3,7 +3,7 @@ creation_date = "2022/08/29"
 maturity = "production"
 min_stack_comments = "New fields added: required_fields, related_integrations, setup"
 min_stack_version = "8.3.0"
-updated_date = "2022/11/28"
+updated_date = "2022/12/12"
 
 [rule]
 author = ["Elastic"]
@@ -30,18 +30,6 @@ sequence by host.id, winlog.event_data.TaskName with maxspan=5m
    [iam where event.action == "scheduled-task-deleted" and not user.name : "*$"]
 '''
 
-[[rule.threat]]
-framework = "MITRE ATT&CK"
-[[rule.threat.technique]]
-id = "T1070"
-name = "Indicator Removal on Host"
-reference = "https://attack.mitre.org/techniques/T1070/"
-
-
-[rule.threat.tactic]
-id = "TA0005"
-name = "Defense Evasion"
-reference = "https://attack.mitre.org/tactics/TA0005/"
 
 [[rule.threat]]
 framework = "MITRE ATT&CK"
@@ -55,9 +43,21 @@ name = "Scheduled Task"
 reference = "https://attack.mitre.org/techniques/T1053/005/"
 
 
+
 [rule.threat.tactic]
 id = "TA0003"
 name = "Persistence"
 reference = "https://attack.mitre.org/tactics/TA0003/"
+[[rule.threat]]
+framework = "MITRE ATT&CK"
+[[rule.threat.technique]]
+id = "T1070"
+name = "Indicator Removal"
+reference = "https://attack.mitre.org/techniques/T1070/"
 
+
+[rule.threat.tactic]
+id = "TA0005"
+name = "Defense Evasion"
+reference = "https://attack.mitre.org/tactics/TA0005/"
 
