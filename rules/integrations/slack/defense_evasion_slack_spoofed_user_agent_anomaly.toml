@@ -85,7 +85,7 @@ timestamp_override = "event.ingested"
 type = "query"
 
 query = '''
-event.dataset:slack.audit and event.action:anomaly and (slack.audit.details.reason:spoofed_user_agent or slack.audit.details.reason:unexpected_client)
+event.dataset:slack.audit and event.action:anomaly and slack.audit.details.reason:(spoofed_user_agent or unexpected_client)
 '''
 
 
@@ -97,7 +97,7 @@ name = "Masquerading"
 reference = "https://attack.mitre.org/techniques/T1036/"
 [[rule.threat.technique.subtechnique]]
 id = "T1036.003"
-name = "Rename System Utilities"
+name = "Rename Legitimate Utilities"
 reference = "https://attack.mitre.org/techniques/T1036/003/"
 
 
