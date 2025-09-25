@@ -1,0 +1,107 @@
+[metadata]
+creation_date = "2025/09/25"
+integration = ["slack"]
+maturity = "production"
+updated_date = "2025/09/25"
+
+[rule]
+author = ["Elastic"]
+description = """
+Detects anomalous behavior in Slack audit logs where characteristics of the client do not match the user agent 
+(spoofed_user_agent) or when an anomalous Slack client is detected (unexpected_client). These related anomalies may 
+indicate an adversary attempting to evade detection by masquerading their tooling or client software.
+"""
+index = ["filebeat-*", "logs-slack*"]
+language = "kuery"
+license = "Elastic License v2"
+name = "Slack User Agent and Client Anomaly"
+note = """## Triage and analysis
+
+### Investigating Slack User Agent and Client Anomaly
+
+User agent and client anomalies in Slack audit logs indicate either that the characteristics of the client software don't 
+match the user agent string (spoofed_user_agent) or that an anomalous Slack client has been detected (unexpected_client). 
+These are strong indicators of potential malicious activity, as legitimate users typically use standard Slack clients 
+that correctly identify themselves.
+
+This rule detects when Slack's anomaly detection system identifies suspicious client or user agent behavior, which could indicate:
+- Automated tools or scripts being used with falsified user agent strings
+- Malicious actors attempting to hide their true client software
+- Custom tools being used to access Slack that may violate security policies
+- Potential account compromise where attackers are using non-standard tools
+
+#### Possible investigation steps
+
+- Identify the actor related to the alert by reviewing the `slack.audit.actor.type` field and examine the `event.original` field for additional user details (ID, name, email).
+- Check the `slack.audit.context.session_id` field to identify the unique authenticated session associated with the anomaly.
+- Examine the `slack.audit.context.domain` and `slack.audit.context.name` fields to understand the workspace/enterprise context.
+- Review the `slack.audit.details.previous_user_agent` field to compare with the current user agent that triggered the anomaly.
+- Check the `slack.audit.details.previous_ip_address` field to compare with the current IP address if available.
+- Examine the `slack.audit.details.location` field for geographic context of the anomalous activity.
+- Look for patterns of similar anomalous behavior from the same session or actor across multiple events.
+- Review the timing of the anomalous activity to see if it coincides with other suspicious events.
+- Verify if the user was using any legitimate third-party tools or integrations that might explain the anomaly.
+
+### False positive analysis
+
+- Some legitimate third-party Slack integrations or automation tools may trigger this alert if they don't properly identify themselves.
+- Custom internal tools that integrate with Slack may cause false positives if they use generic or modified user agent strings.
+- Users accessing Slack through uncommon but legitimate clients (like some mobile browsers) might occasionally trigger this detection.
+- Testing or development activities using custom tools might generate legitimate spoofed user agent alerts.
+
+### Response and remediation
+
+- If malicious activity is confirmed, immediately suspend the affected user account and reset their authentication tokens.
+- Force the user to re-authenticate and consider requiring MFA if not already enabled.
+- Review all recent activities by the affected user account for signs of unauthorized actions.
+- If the activity came from an internal tool or integration, work with the development team to ensure proper user agent identification.
+- Consider implementing additional monitoring for the affected user account and source IP address.
+- Update security policies regarding acceptable third-party tools and integrations if necessary.
+- Document the incident and use the findings to improve detection rules and security policies.
+
+## Setup
+
+The Slack Fleet integration, Filebeat module, or similarly structured data is required to be compatible with this rule. 
+Slack's audit log anomaly detection must be enabled for this rule to function properly. The rule relies on the 
+`slack.audit.details.reason` field which contains anomaly detection reasons including 'spoofed_user_agent' and 
+'unexpected_client'. Additional context about actors and sessions is available through mapped fields like 
+`slack.audit.context.session_id` and `slack.audit.actor.type`, while detailed user information may be found in the 
+raw `event.original` field."""
+references = [
+    "https://docs.slack.dev/reference/audit-logs-api/anomalous-events-reference/",
+    "https://api.slack.com/enterprise/audit",
+    "https://slack.com/help/articles/360002084807-Audit-logs-for-Enterprise-Grid"
+]
+risk_score = 73
+rule_id = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+severity = "high"
+tags = [
+    "Data Source: Slack",
+    "Use Case: Identity and Access Audit",
+    "Tactic: Defense Evasion",
+    "Resources: Investigation Guide",
+]
+timestamp_override = "event.ingested"
+type = "query"
+
+query = '''
+event.dataset:slack.audit and event.action:anomaly and (slack.audit.details.reason:spoofed_user_agent or slack.audit.details.reason:unexpected_client)
+'''
+
+
+[[rule.threat]]
+framework = "MITRE ATT&CK"
+[[rule.threat.technique]]
+id = "T1036"
+name = "Masquerading"
+reference = "https://attack.mitre.org/techniques/T1036/"
+[[rule.threat.technique.subtechnique]]
+id = "T1036.003"
+name = "Rename System Utilities"
+reference = "https://attack.mitre.org/techniques/T1036/003/"
+
+
+[rule.threat.tactic]
+id = "TA0005"
+name = "Defense Evasion"
+reference = "https://attack.mitre.org/tactics/TA0005/"
