@@ -1,0 +1,142 @@
+[metadata]
+creation_date = "2025/10/31"
+integration = ["slack"]
+maturity = "production"
+updated_date = "2025/10/31"
+
+[rule]
+author = ["Elastic"]
+description = """
+Detects when Slack's anomaly detection identifies excessive file download patterns from a user or application. This
+behavior often indicates data exfiltration attempts, insider threats, or compromised accounts being used to steal
+sensitive information from the organization's Slack workspace.
+"""
+false_positives = [
+    "New employees downloading historical files for onboarding purposes",
+    "Legitimate backup operations or data migration activities",
+    "Users archiving files before leaving the organization with approval",
+    "Automated compliance or discovery tools performing scheduled exports"
+]
+from = "now-60m"
+index = ["filebeat-*", "logs-slack*"]
+interval = "10m"
+language = "kuery"
+license = "Elastic License v2"
+name = "Slack Excessive File Downloads Detected"
+note = """## Triage and analysis
+
+### Investigating Slack Excessive File Downloads
+
+Excessive download patterns in Slack are strong indicators of data exfiltration attempts. This anomaly detects when
+users or applications download an unusually high volume of files in a short timeframe, which may indicate:
+- Data theft by malicious insiders or compromised accounts
+- Automated tools harvesting organizational data
+- Preparation for ransomware attacks (data theft before encryption)
+- Industrial espionage or intellectual property theft
+- Unauthorized data backup or migration
+
+#### Possible investigation steps
+
+- Identify the user or application involved using `slack.audit.actor.user.id` or `slack.audit.actor.user.email`.
+- Review the volume and timeframe of downloads to understand the scale of potential exfiltration.
+- Check the types and sensitivity of files downloaded (if logged).
+- Examine the `slack.audit.context.session_id` to track the full session activity.
+- Look for downloads from specific channels, especially those containing sensitive data.
+- Review the user's normal file access patterns to establish baseline behavior.
+- Check if downloads occurred during unusual hours or from unusual locations.
+- Correlate with other anomalies like new device logins or IP address changes.
+- Investigate if the user has recently given notice or been terminated.
+- Check for similar patterns from other users (potential coordinated exfiltration).
+- Review any recent privilege escalations or permission changes for the user.
+
+### False positive analysis
+
+- New team members legitimately downloading project documentation and resources.
+- Users preparing presentations or reports requiring multiple file references.
+- Legitimate archival activities during project completions or team transitions.
+- Automated backup solutions or compliance tools performing scheduled operations.
+- Users downloading files for offline work during travel or remote work periods.
+
+### Response and remediation
+
+- **Immediate Actions:**
+  - Suspend file download permissions for the affected account if ongoing.
+  - Contact the user immediately to verify the legitimacy of downloads.
+  - Capture and preserve logs of all downloaded files for investigation.
+  - Block network egress for the user's devices if data theft is suspected.
+  - Revoke Slack tokens and force re-authentication.
+
+- **Investigation Actions:**
+  - Create an inventory of all files downloaded during the incident.
+  - Classify downloaded files by sensitivity and business impact.
+  - Check if downloaded files have been forwarded externally (email, cloud storage).
+  - Review the user's recent email and network activity for exfiltration indicators.
+  - Interview the user and their manager about the business justification.
+  - Check if files have appeared on external sites or dark web marketplaces.
+
+- **Containment Actions:**
+  - Implement DLP rules to prevent further unauthorized downloads.
+  - Restrict access to sensitive channels temporarily.
+  - Enable additional logging for file access activities.
+  - Monitor the user's other accounts and access points.
+
+- **Recovery and Prevention:**
+  - Review and update data classification and access policies.
+  - Implement rate limiting for file downloads.
+  - Deploy user behavior analytics (UBA) for anomaly detection.
+  - Enhance monitoring of high-risk users (departing employees, contractors).
+  - Provide security awareness training on data handling policies.
+  - Consider implementing watermarking for sensitive documents.
+
+## Setup
+
+The Slack Fleet integration, Filebeat module, or similarly structured data is required. Slack's audit log anomaly
+detection must be enabled to identify excessive download patterns. The rule monitors for 'excessive_downloads' in
+the `slack.audit.details.reason` field. This anomaly applies to both users and applications. Ensure file access
+auditing is comprehensively enabled in Slack settings to capture all download events for correlation."""
+references = [
+    "https://docs.slack.dev/reference/audit-logs-api/anomalous-events-reference/",
+    "https://attack.mitre.org/techniques/T1567/",
+    "https://attack.mitre.org/techniques/T1048/"
+]
+risk_score = 73
+rule_id = "fd550be2-e328-48e2-b32c-6fcb38bfa655"
+severity = "high"
+tags = [
+    "Data Source: Slack",
+    "Use Case: Data Loss Prevention",
+    "Tactic: Exfiltration",
+    "Tactic: Collection",
+    "Resources: Investigation Guide"
+]
+timestamp_override = "event.ingested"
+type = "query"
+
+query = '''
+event.dataset:slack.audit and event.action:anomaly and slack.audit.details.reason:excessive_downloads
+'''
+
+
+[[rule.threat]]
+framework = "MITRE ATT&CK"
+[[rule.threat.technique]]
+id = "T1567"
+name = "Exfiltration Over Web Service"
+reference = "https://attack.mitre.org/techniques/T1567/"
+
+[rule.threat.tactic]
+id = "TA0010"
+name = "Exfiltration"
+reference = "https://attack.mitre.org/tactics/TA0010/"
+
+[[rule.threat]]
+framework = "MITRE ATT&CK"
+[[rule.threat.technique]]
+id = "T1213"
+name = "Data from Information Repositories"
+reference = "https://attack.mitre.org/techniques/T1213/"
+
+[rule.threat.tactic]
+id = "TA0009"
+name = "Collection"
+reference = "https://attack.mitre.org/tactics/TA0009/"

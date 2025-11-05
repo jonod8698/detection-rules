@@ -1,0 +1,147 @@
+[metadata]
+creation_date = "2025/10/31"
+integration = ["slack"]
+maturity = "production"
+updated_date = "2025/10/31"
+
+[rule]
+author = ["Elastic"]
+description = """
+Detects when Slack's anomaly detection system identifies that a user has accessed the workspace through a Tor exit node.
+This may indicate attempts to anonymize malicious activity, bypass geographic restrictions, or hide the true origin of
+an attack. Tor usage in corporate environments is often prohibited and can be a strong indicator of compromise or policy violation.
+"""
+false_positives = [
+    "Security researchers or penetration testers may legitimately use Tor for testing purposes",
+    "Users in restricted regions may use Tor for legitimate privacy concerns",
+    "Legitimate privacy-conscious users, though this is uncommon in corporate environments"
+]
+from = "now-60m"
+index = ["filebeat-*", "logs-slack*"]
+interval = "10m"
+language = "kuery"
+license = "Elastic License v2"
+name = "Slack Access via Tor Exit Node"
+note = """## Triage and analysis
+
+### Investigating Slack Access via Tor Exit Node
+
+The detection of Tor exit node usage in Slack audit logs is a significant security event. Tor (The Onion Router) is an
+anonymization network that conceals users' true IP addresses by routing traffic through multiple relay servers. While Tor
+has legitimate uses, its presence in corporate Slack access is highly unusual and often indicates malicious activity or
+policy violations.
+
+This rule triggers when Slack's anomaly detection identifies that a user's connection originated from a known Tor exit node.
+This could indicate:
+- An attacker attempting to hide their true location after compromising an account
+- Data exfiltration attempts where the actor wants to remain anonymous
+- Insider threats attempting to avoid detection
+- External attackers using stolen credentials through anonymized connections
+- Attempts to bypass geographic restrictions or IP-based security controls
+
+#### Possible investigation steps
+
+- Immediately identify the affected user account by examining `slack.audit.actor.user.id` and `slack.audit.actor.user.email` fields.
+- Review the `slack.audit.context.session_id` to track all activities from this specific session.
+- Check the timestamp of the Tor access and correlate with the user's normal activity patterns.
+- Review all actions performed during the Tor session, particularly focusing on:
+  - File downloads or exports (`excessive_downloads` events)
+  - Message deletions (`unexpected_message_deletion` events)
+  - Channel or workspace configuration changes
+  - Access to sensitive channels or direct messages
+- Examine recent authentication events for this user to identify potential credential compromise.
+- Check if the user has reported any suspicious activity or lost devices.
+- Look for other anomaly events from the same user around the same timeframe.
+- Contact the user directly to verify if they intentionally used Tor (extremely unlikely in corporate settings).
+- Review the `slack.audit.details.location` field if available to understand the apparent geographic origin.
+- Check for correlation with other security alerts from endpoint detection, email security, or SIEM systems.
+
+### False positive analysis
+
+- Security professionals conducting authorized penetration testing or red team exercises may use Tor.
+- Users in countries with internet censorship might use Tor for legitimate access, though this should be pre-approved.
+- Employees working from public networks might inadvertently connect through a Tor exit node if using public WiFi with Tor.
+- Third-party integrations or bots incorrectly identified as using Tor (very rare).
+
+### Response and remediation
+
+- **Immediate Actions:**
+  - Disable the affected user account immediately to prevent further unauthorized access.
+  - Terminate all active sessions for the user across all devices.
+  - Reset the user's password and revoke all OAuth tokens and app passwords.
+  - Enable mandatory MFA if not already enforced.
+
+- **Investigation Actions:**
+  - Conduct a full audit of all user activities during and around the Tor session.
+  - Review all files accessed, messages sent, and configuration changes made.
+  - Check for data exfiltration indicators such as bulk downloads or unusual file sharing.
+  - Investigate how the credentials may have been compromised (phishing, malware, credential stuffing).
+
+- **Recovery Actions:**
+  - After confirming the user's identity through out-of-band communication, re-enable the account with new credentials.
+  - Implement additional monitoring on the affected account for at least 30 days.
+  - Review and potentially revoke access to sensitive channels or data.
+  - Consider implementing IP allowlisting for high-privilege accounts.
+
+- **Prevention Actions:**
+  - Block Tor exit nodes at the network perimeter if not already implemented.
+  - Implement conditional access policies that prevent access from anonymization services.
+  - Enhance security awareness training regarding the risks of credential compromise.
+  - Consider implementing risk-based authentication that challenges suspicious login attempts.
+
+## Setup
+
+This rule requires the Slack Fleet integration, Filebeat module, or similarly structured data to be compatible.
+Slack's audit log anomaly detection must be enabled, and the workspace must be configured to detect and log Tor usage.
+The rule specifically looks for the 'tor' reason in the `slack.audit.details.reason` field. Ensure that Slack audit
+logs are being ingested with full detail preservation to capture all anomaly-related fields."""
+references = [
+    "https://docs.slack.dev/reference/audit-logs-api/anomalous-events-reference/",
+    "https://www.torproject.org/",
+    "https://attack.mitre.org/techniques/T1090/003/"
+]
+risk_score = 90
+rule_id = "4b484481-2cac-420c-b475-49de3357afe0"
+severity = "critical"
+tags = [
+    "Data Source: Slack",
+    "Use Case: Threat Detection",
+    "Tactic: Initial Access",
+    "Tactic: Defense Evasion",
+    "Resources: Investigation Guide"
+]
+timestamp_override = "event.ingested"
+type = "query"
+
+query = '''
+event.dataset:slack.audit and event.action:anomaly and slack.audit.details.reason:tor
+'''
+
+
+[[rule.threat]]
+framework = "MITRE ATT&CK"
+[[rule.threat.technique]]
+id = "T1090"
+name = "Proxy"
+reference = "https://attack.mitre.org/techniques/T1090/"
+[[rule.threat.technique.subtechnique]]
+id = "T1090.003"
+name = "Multi-hop Proxy"
+reference = "https://attack.mitre.org/techniques/T1090/003/"
+
+[rule.threat.tactic]
+id = "TA0001"
+name = "Initial Access"
+reference = "https://attack.mitre.org/tactics/TA0001/"
+
+[[rule.threat]]
+framework = "MITRE ATT&CK"
+[[rule.threat.technique]]
+id = "T1090"
+name = "Proxy"
+reference = "https://attack.mitre.org/techniques/T1090/"
+
+[rule.threat.tactic]
+id = "TA0005"
+name = "Defense Evasion"
+reference = "https://attack.mitre.org/tactics/TA0005/"

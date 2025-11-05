@@ -1,0 +1,153 @@
+[metadata]
+creation_date = "2025/10/31"
+integration = ["slack"]
+maturity = "production"
+updated_date = "2025/10/31"
+
+[rule]
+author = ["Elastic"]
+description = """
+Detects when Slack identifies the use of tools designed for data scraping. This indicates automated collection of
+workspace data including messages, user information, and files. Scraping tools are commonly used for industrial
+espionage, competitive intelligence gathering, or preparing for targeted attacks.
+"""
+false_positives = [
+    "Legitimate data archival or compliance tools with scraping-like behavior",
+    "Authorized discovery tools for legal or compliance purposes",
+    "Backup solutions that exhibit scraping patterns",
+    "Development or testing of legitimate automation tools"
+]
+from = "now-60m"
+index = ["filebeat-*", "logs-slack*"]
+interval = "10m"
+language = "kuery"
+license = "Elastic License v2"
+name = "Slack Data Scraping Tool Detected"
+note = """## Triage and analysis
+
+### Investigating Slack Data Scraping Tool Detection
+
+Data scraping tools systematically extract information from Slack workspaces, often harvesting messages, user profiles,
+file metadata, and channel information. This detection indicates automated tools designed to collect data at scale, which
+represents a significant threat to organizational confidentiality and intellectual property.
+
+Common scraping scenarios include:
+- Competitors gathering business intelligence and trade secrets
+- Attackers harvesting data for social engineering or targeted attacks
+- Insiders exfiltrating data before leaving the organization
+- Nation-state actors conducting economic espionage
+- Criminals collecting data for extortion or sale
+
+#### Possible investigation steps
+
+- Identify the account used for scraping via `slack.audit.actor.user.id` and `slack.audit.actor.user.email`.
+- Review the `slack.audit.context.session_id` to understand the full scope of scraping activity.
+- Analyze the pattern and velocity of API calls or access patterns that triggered detection.
+- Identify which channels, conversations, or data types were targeted.
+- Check the timeframe and determine how much data may have been collected.
+- Look for specific scraping tool signatures or user agent patterns.
+- Review if the scraping targeted specific keywords, users, or time periods.
+- Check for data egress indicators following the scraping activity.
+- Correlate with network logs to identify data transfer volumes.
+- Investigate if multiple accounts were used in coordinated scraping.
+- Review the account's history for reconnaissance activities before scraping.
+
+### False positive analysis
+
+- Enterprise search or indexing tools legitimately cataloging Slack content.
+- Compliance and e-discovery tools performing authorized data collection.
+- Analytics platforms gathering metrics and usage statistics.
+- Migration tools moving data between Slack workspaces or to other platforms.
+- Custom integrations or bots with aggressive data access patterns.
+
+### Response and remediation
+
+- **Immediate Actions:**
+  - Immediately suspend the account performing scraping activities.
+  - Block the IP addresses and any identified scraping infrastructure.
+  - Implement rate limiting on API access if not already configured.
+  - Review and potentially revoke API tokens that may be compromised.
+  - Document all scraped content for impact assessment.
+
+- **Investigation Actions:**
+  - Create an inventory of all data potentially accessed by the scraping tool.
+  - Classify the scraped data by sensitivity and regulatory requirements.
+  - Determine if scraped data included PII, trade secrets, or classified information.
+  - Check if the scraper accessed private channels or direct messages.
+  - Review network logs for data exfiltration to external destinations.
+  - Investigate how the scraping tool gained access (compromised credentials, malicious app).
+
+- **Containment Actions:**
+  - Implement API rate limiting and anomaly detection rules.
+  - Review and restrict third-party app permissions.
+  - Enable additional logging for data access patterns.
+  - Consider implementing data loss prevention (DLP) controls.
+  - Block known scraping tools and suspicious user agents.
+
+- **Recovery and Prevention:**
+  - Audit all third-party integrations and remove unnecessary ones.
+  - Implement stricter app approval processes.
+  - Deploy behavioral analytics to detect scraping patterns.
+  - Review and update data retention and access policies.
+  - Provide security awareness training on data protection.
+  - Consider implementing workspace data encryption.
+  - Regular audits of API usage and access patterns.
+
+- **Legal and Compliance Actions:**
+  - Notify legal team for potential intellectual property theft.
+  - Report to law enforcement if criminal activity is suspected.
+  - Comply with breach notification requirements if PII was accessed.
+  - Document the incident for compliance and audit purposes.
+  - Consider legal action against perpetrators if identified.
+
+## Setup
+
+The Slack Fleet integration, Filebeat module, or similarly structured data is required. Slack's audit log anomaly
+detection must be configured to identify scraping patterns and tools. The rule monitors for 'unexpected_scraping'
+in the `slack.audit.details.reason` field. Enhanced API monitoring and rate limiting should be configured to
+complement this detection. Consider implementing additional monitoring for bulk data access patterns."""
+references = [
+    "https://docs.slack.dev/reference/audit-logs-api/anomalous-events-reference/",
+    "https://attack.mitre.org/techniques/T1213/",
+    "https://attack.mitre.org/techniques/T1119/"
+]
+risk_score = 73
+rule_id = "3fa59aec-43f5-44a8-90c8-a21f48fd6ed0"
+severity = "high"
+tags = [
+    "Data Source: Slack",
+    "Use Case: Data Loss Prevention",
+    "Tactic: Collection",
+    "Resources: Investigation Guide"
+]
+timestamp_override = "event.ingested"
+type = "query"
+
+query = '''
+event.dataset:slack.audit and event.action:anomaly and slack.audit.details.reason:unexpected_scraping
+'''
+
+
+[[rule.threat]]
+framework = "MITRE ATT&CK"
+[[rule.threat.technique]]
+id = "T1213"
+name = "Data from Information Repositories"
+reference = "https://attack.mitre.org/techniques/T1213/"
+
+[rule.threat.tactic]
+id = "TA0009"
+name = "Collection"
+reference = "https://attack.mitre.org/tactics/TA0009/"
+
+[[rule.threat]]
+framework = "MITRE ATT&CK"
+[[rule.threat.technique]]
+id = "T1119"
+name = "Automated Collection"
+reference = "https://attack.mitre.org/techniques/T1119/"
+
+[rule.threat.tactic]
+id = "TA0009"
+name = "Collection"
+reference = "https://attack.mitre.org/tactics/TA0009/"

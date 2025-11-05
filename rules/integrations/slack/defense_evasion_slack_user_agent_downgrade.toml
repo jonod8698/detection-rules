@@ -1,0 +1,131 @@
+[metadata]
+creation_date = "2025/10/31"
+integration = ["slack"]
+maturity = "production"
+updated_date = "2025/10/31"
+
+[rule]
+author = ["Elastic"]
+description = """
+Detects when Slack identifies a suspicious downgrade in the user agent version. This may indicate an attacker using
+older, potentially vulnerable client versions to exploit known vulnerabilities, bypass security features, or evade
+detection mechanisms that focus on current client versions.
+"""
+false_positives = [
+    "Users reverting to older client versions due to compatibility issues",
+    "Testing environments using older client versions",
+    "Users on restricted networks that prevent client updates",
+    "Rollback of client versions due to bugs in newer releases"
+]
+from = "now-60m"
+index = ["filebeat-*", "logs-slack*"]
+interval = "10m"
+language = "kuery"
+license = "Elastic License v2"
+name = "Slack Client Version Downgrade Detected"
+note = """## Triage and analysis
+
+### Investigating Slack Client Version Downgrade
+
+User agent downgrades are suspicious because legitimate users rarely revert to older client versions. This anomaly often
+indicates malicious actors attempting to:
+- Exploit vulnerabilities present in older versions
+- Bypass security features introduced in newer versions
+- Use tools that impersonate older clients
+- Evade detection by mimicking outdated but legitimate traffic
+- Access deprecated API endpoints that may have weaker security controls
+
+#### Possible investigation steps
+
+- Identify the user account involved by checking `slack.audit.actor.user.id` and `slack.audit.actor.user.email`.
+- Compare the current and previous user agents using `slack.audit.details.ua` and `slack.audit.details.previous_ua` fields.
+- Analyze the version difference to understand the extent of the downgrade.
+- Check the `slack.audit.context.session_id` to track all activities from this session.
+- Review the timing of the downgrade - did it occur during normal hours or after a period of inactivity?
+- Look for other anomalous events from the same user around the same time period.
+- Check if the downgraded version has known vulnerabilities (CVE database review).
+- Examine actions performed with the downgraded client, particularly:
+  - Access to sensitive data or channels
+  - File downloads or exports
+  - API calls that might not be available in current versions
+  - Administrative actions
+- Verify with the user if they intentionally downgraded their client.
+- Check if this pattern appears across multiple users (potential tool or campaign).
+
+### False positive analysis
+
+- Organizations with legacy systems may require older client versions for compatibility.
+- Users experiencing issues with new versions may temporarily revert to older ones.
+- Development/testing teams may use various client versions for compatibility testing.
+- Some third-party Slack clients may report older version numbers.
+- Automated systems or bots may use older API versions legitimately.
+
+### Response and remediation
+
+- **Immediate Actions:**
+  - Contact the user to verify if the downgrade was intentional.
+  - If suspicious, temporarily restrict the account's access to sensitive channels.
+  - Monitor the account closely for any unusual activities.
+  - Force the user to update to the latest client version.
+
+- **Investigation Actions:**
+  - Review all activities performed with the downgraded client.
+  - Check for any data access or exfiltration during the downgrade period.
+  - Analyze whether specific features or APIs were targeted.
+  - Look for patterns suggesting automated tool usage.
+
+- **Security Measures:**
+  - Enforce minimum client version requirements if possible.
+  - Block access from severely outdated client versions.
+  - Implement additional authentication challenges for older clients.
+  - Review and update security policies regarding client version requirements.
+
+- **Long-term Actions:**
+  - Maintain an inventory of approved client versions.
+  - Implement automated alerts for significant version downgrades.
+  - Regular security awareness training about the risks of using outdated software.
+  - Consider implementing application control to prevent unauthorized client usage.
+
+## Setup
+
+The Slack Fleet integration, Filebeat module, or similarly structured data is required for this rule. Slack's audit
+log anomaly detection must be enabled to detect user agent changes. The rule monitors for 'user_agent' or
+'unexpected_user_agent' reasons in the `slack.audit.details.reason` field, specifically looking for downgrade patterns.
+The `slack.audit.details.ua` and `slack.audit.details.previous_ua` fields provide version comparison data."""
+references = [
+    "https://docs.slack.dev/reference/audit-logs-api/anomalous-events-reference/",
+    "https://attack.mitre.org/techniques/T1036/",
+    "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/02-Configuration_and_Deployment_Management_Testing/01-Test_Network_Infrastructure_Configuration"
+]
+risk_score = 47
+rule_id = "3865fa5c-9065-40ca-a55d-eb8001216234"
+severity = "medium"
+tags = [
+    "Data Source: Slack",
+    "Use Case: Threat Detection",
+    "Tactic: Defense Evasion",
+    "Resources: Investigation Guide"
+]
+timestamp_override = "event.ingested"
+type = "query"
+
+query = '''
+event.dataset:slack.audit and event.action:anomaly and slack.audit.details.reason:(user_agent or unexpected_user_agent)
+'''
+
+
+[[rule.threat]]
+framework = "MITRE ATT&CK"
+[[rule.threat.technique]]
+id = "T1036"
+name = "Masquerading"
+reference = "https://attack.mitre.org/techniques/T1036/"
+[[rule.threat.technique.subtechnique]]
+id = "T1036.005"
+name = "Match Legitimate Name or Location"
+reference = "https://attack.mitre.org/techniques/T1036/005/"
+
+[rule.threat.tactic]
+id = "TA0005"
+name = "Defense Evasion"
+reference = "https://attack.mitre.org/tactics/TA0005/"

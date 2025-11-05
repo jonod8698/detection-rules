@@ -1,0 +1,178 @@
+[metadata]
+creation_date = "2025/10/31"
+integration = ["slack"]
+maturity = "production"
+updated_date = "2025/10/31"
+
+[rule]
+author = ["Elastic"]
+description = """
+Detects when Slack identifies anomalous behavior from an administrator account. This high-severity event indicates
+potential compromise of privileged accounts that could lead to complete workspace takeover, data breaches, or
+significant business disruption. Admin account anomalies require immediate investigation and response.
+"""
+false_positives = [
+    "New administrators performing unfamiliar administrative tasks",
+    "Administrators working from new locations or during unusual hours",
+    "Legitimate bulk administrative operations during migrations or reorganizations",
+    "Emergency administrative actions during incident response"
+]
+from = "now-60m"
+index = ["filebeat-*", "logs-slack*"]
+interval = "5m"
+language = "kuery"
+license = "Elastic License v2"
+name = "Slack Administrator Account Anomaly Detected"
+note = """## Triage and analysis
+
+### Investigating Slack Administrator Account Anomaly
+
+Administrator account anomalies are among the most critical security events as these accounts have extensive privileges
+to modify workspace settings, access all data, and manage user accounts. Compromise of admin accounts can lead to:
+- Complete workspace takeover and persistent backdoor access
+- Mass data exfiltration from all channels and direct messages
+- Privilege escalation for other compromised accounts
+- Destruction or manipulation of audit logs and security settings
+- Installation of malicious apps or integrations
+- Business email compromise (BEC) attacks using trusted admin accounts
+
+#### Possible investigation steps
+
+- **CRITICAL**: Immediately identify the admin account via `slack.audit.actor.user.id` and administrative role type.
+- Review the specific anomalous actions that triggered the detection.
+- Check the `slack.audit.context.session_id` and trace all actions in this session.
+- Examine recent admin actions including:
+  - User account modifications (creation, deletion, privilege changes)
+  - Security setting modifications (MFA, SSO, audit settings)
+  - App and integration installations or modifications
+  - Channel and workspace setting changes
+  - Data export or backup operations
+  - API token generation or modifications
+- Compare current activity with the admin's historical behavior patterns.
+- Check for concurrent anomalies (Tor usage, suspicious ASN, credential testing).
+- Review authentication logs for unusual login patterns or locations.
+- Verify with the administrator through out-of-band communication (phone call).
+- Check if other admin accounts show similar anomalous patterns.
+- Review any recent social engineering attempts targeting administrators.
+- Examine email and other communication channels for phishing targeting admins.
+
+### False positive analysis
+
+- Administrators performing legitimate but unusual emergency operations.
+- Admin accounts used by multiple authorized individuals (shared accounts).
+- Automated administrative scripts or tools triggering anomaly detection.
+- New administrators learning the system and making unusual action sequences.
+- Legitimate administrative actions during major organizational changes.
+
+### Response and remediation
+
+- **CRITICAL - Immediate Actions:**
+  - Immediately disable the affected administrator account.
+  - Revoke all active sessions and API tokens for the account.
+  - Enable emergency audit logging at maximum verbosity.
+  - Activate incident response team and executive notification procedures.
+  - Preserve all logs and create forensic snapshots immediately.
+  - Review and temporarily restrict other admin accounts as precaution.
+
+- **Containment Actions:**
+  - Audit all recent admin actions for backdoors or persistence mechanisms.
+  - Check for newly created admin accounts or elevated privileges.
+  - Review all recently installed apps and integrations for malicious components.
+  - Verify integrity of SSO/authentication configurations.
+  - Check for modifications to security settings or audit configurations.
+  - Review any data exports or bulk operations performed.
+  - Scan for API tokens or webhooks that could provide persistent access.
+
+- **Investigation Actions:**
+  - Conduct thorough review of all admin actions over past 30-90 days.
+  - Interview the administrator about recent activities and access patterns.
+  - Review administrator's email for phishing or social engineering.
+  - Check endpoint security on admin's devices for compromise indicators.
+  - Analyze network traffic from admin's devices for C2 communications.
+  - Review access logs for all critical systems the admin has access to.
+
+- **Recovery Actions:**
+  - Reset passwords for all administrator accounts.
+  - Enforce MFA re-enrollment for all privileged accounts.
+  - Review and reset all API tokens and integration credentials.
+  - Audit and correct any unauthorized configuration changes.
+  - Restore any deleted or modified critical data from backups.
+  - Implement additional monitoring on all admin accounts.
+  - Consider implementing privileged access management (PAM) solution.
+
+- **Post-Incident Improvements:**
+  - Implement just-in-time (JIT) administrative access.
+  - Deploy dedicated admin workstations (PAWs) for administrative tasks.
+  - Enhance monitoring and alerting for administrative actions.
+  - Implement break-glass procedures for emergency admin access.
+  - Regular admin account access reviews and privilege audits.
+  - Enhanced security awareness training for administrators.
+
+## Setup
+
+The Slack Fleet integration, Filebeat module, or similarly structured data is required. Slack's audit log anomaly
+detection must be enabled with particular attention to administrative actions. The rule monitors for
+'unexpected_admin_action' in the `slack.audit.details.reason` field. Ensure comprehensive logging of all
+administrative actions and maintain extended log retention for admin activities due to their critical nature."""
+references = [
+    "https://docs.slack.dev/reference/audit-logs-api/anomalous-events-reference/",
+    "https://attack.mitre.org/techniques/T1078/004/",
+    "https://attack.mitre.org/techniques/T1098/"
+]
+risk_score = 95
+rule_id = "157c08ea-a708-487d-aed5-42979cd370b5"
+severity = "critical"
+tags = [
+    "Data Source: Slack",
+    "Use Case: Threat Detection",
+    "Tactic: Impact",
+    "Tactic: Privilege Escalation",
+    "Resources: Investigation Guide"
+]
+timestamp_override = "event.ingested"
+type = "query"
+
+query = '''
+event.dataset:slack.audit and event.action:anomaly and slack.audit.details.reason:unexpected_admin_action
+'''
+
+
+[[rule.threat]]
+framework = "MITRE ATT&CK"
+[[rule.threat.technique]]
+id = "T1078"
+name = "Valid Accounts"
+reference = "https://attack.mitre.org/techniques/T1078/"
+[[rule.threat.technique.subtechnique]]
+id = "T1078.004"
+name = "Cloud Accounts"
+reference = "https://attack.mitre.org/techniques/T1078/004/"
+
+[rule.threat.tactic]
+id = "TA0004"
+name = "Privilege Escalation"
+reference = "https://attack.mitre.org/tactics/TA0004/"
+
+[[rule.threat]]
+framework = "MITRE ATT&CK"
+[[rule.threat.technique]]
+id = "T1098"
+name = "Account Manipulation"
+reference = "https://attack.mitre.org/techniques/T1098/"
+
+[rule.threat.tactic]
+id = "TA0003"
+name = "Persistence"
+reference = "https://attack.mitre.org/tactics/TA0003/"
+
+[[rule.threat]]
+framework = "MITRE ATT&CK"
+[[rule.threat.technique]]
+id = "T1531"
+name = "Account Access Removal"
+reference = "https://attack.mitre.org/techniques/T1531/"
+
+[rule.threat.tactic]
+id = "TA0040"
+name = "Impact"
+reference = "https://attack.mitre.org/tactics/TA0040/"

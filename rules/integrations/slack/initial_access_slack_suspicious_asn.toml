@@ -1,0 +1,150 @@
+[metadata]
+creation_date = "2025/10/31"
+integration = ["slack"]
+maturity = "production"
+updated_date = "2025/10/31"
+
+[rule]
+author = ["Elastic"]
+description = """
+Detects when Slack identifies access from an Autonomous System Number (ASN) that is on a list of suspicious or malicious
+ASNs. This may indicate access from known malicious infrastructure, bulletproof hosting providers, or compromised networks
+commonly used by threat actors. ASN-based detection helps identify attacks originating from problematic network providers.
+"""
+false_positives = [
+    "Legitimate users accessing Slack through VPN services that use flagged ASNs",
+    "Employees traveling to regions with limited ISP options that happen to be flagged",
+    "Cloud services or hosting providers incorrectly flagged as suspicious",
+    "Partner organizations using hosting providers on the suspicious ASN list"
+]
+from = "now-60m"
+index = ["filebeat-*", "logs-slack*"]
+interval = "10m"
+language = "kuery"
+license = "Elastic License v2"
+name = "Slack Access from Suspicious ASN"
+note = """## Triage and analysis
+
+### Investigating Slack Access from Suspicious ASN
+
+An Autonomous System Number (ASN) identifies a network on the internet. Slack maintains a list of ASNs known to be
+associated with malicious activity, bulletproof hosting, or compromised infrastructure. When access is detected from
+these suspicious ASNs, it often indicates:
+- Attackers using known malicious infrastructure
+- Access from bulletproof hosting providers that don't respond to abuse reports
+- Compromised cloud instances being used as attack platforms
+- Botnets or proxy services commonly used for malicious purposes
+- Nation-state or criminal infrastructure
+
+This detection is always accompanied by an IP address reason, providing additional context about the suspicious network.
+
+#### Possible investigation steps
+
+- Identify the affected user by examining `slack.audit.actor.user.id` and `slack.audit.actor.user.email` fields.
+- Review the specific ASN details and research the network provider's reputation using threat intelligence sources.
+- Check the `slack.audit.details.location` field to understand the geographic origin of the access.
+- Examine the `slack.audit.details.previous_ip_address` to compare with the suspicious IP/ASN.
+- Look for patterns of access from this ASN across multiple user accounts.
+- Correlate with the IP address information (the 'asn' reason is always accompanied by 'ip_address' reason).
+- Review all actions performed from this suspicious ASN, focusing on:
+  - Data access or download activities
+  - Configuration changes
+  - Message deletions or channel modifications
+  - New integration or app installations
+- Check if this ASN has been associated with previous security incidents in your organization.
+- Query threat intelligence platforms for known malicious activity from this ASN.
+- Verify if the user has any legitimate reason to be accessing from this network (unlikely for suspicious ASNs).
+
+### False positive analysis
+
+- VPN providers may occasionally be flagged if they've been abused by malicious actors.
+- Legitimate cloud service providers might be flagged if they host both legitimate and malicious content.
+- Mobile carriers in certain regions might be incorrectly categorized as suspicious.
+- Shared hosting or coworking spaces might trigger alerts if other tenants have engaged in malicious activity.
+- Users accessing Slack while traveling through airports or hotels using flagged network providers.
+
+### Response and remediation
+
+- **Immediate Actions:**
+  - If the access is unauthorized, immediately disable the affected user account.
+  - Terminate all active sessions from the suspicious ASN.
+  - Block the specific IP range or ASN at the network perimeter if possible.
+  - Reset passwords and revoke all authentication tokens for affected accounts.
+  - Enable MFA if not already active.
+
+- **Investigation Actions:**
+  - Conduct a thorough review of all activities from the suspicious ASN.
+  - Check if multiple accounts have been accessed from the same ASN.
+  - Look for data exfiltration indicators such as bulk downloads or unusual API activity.
+  - Review authentication logs to understand how the attacker gained access.
+  - Check if the same ASN has been used to target other services in your organization.
+
+- **Containment Actions:**
+  - Implement IP allowlisting for high-privilege accounts to prevent access from unauthorized networks.
+  - Configure Slack to block access from specific geographic regions if appropriate.
+  - Update firewall rules to block known malicious ASN ranges.
+  - Consider implementing zero-trust network access controls.
+
+- **Long-term Actions:**
+  - Maintain an updated list of suspicious ASNs based on threat intelligence.
+  - Implement automated blocking of known malicious infrastructure.
+  - Regular review of access patterns to identify new suspicious networks.
+  - Enhanced monitoring for accounts that have previously been targeted.
+  - Consider using Slack's admin.audit.anomaly.allow.updateItem API to exclude trusted ASNs from detection.
+
+## Setup
+
+The Slack Fleet integration, Filebeat module, or similarly structured data is required for this rule. Slack's audit
+log anomaly detection must be enabled and configured to detect suspicious ASNs. The rule looks for the 'asn' reason
+in the `slack.audit.details.reason` field, which is always accompanied by an 'ip_address' reason providing additional
+context. Organizations can customize their suspicious ASN list through Slack's admin APIs to exclude trusted networks
+or add additional suspicious ones based on their threat intelligence."""
+references = [
+    "https://docs.slack.dev/reference/audit-logs-api/anomalous-events-reference/",
+    "https://www.team-cymru.com/ip-asn-mapping",
+    "https://attack.mitre.org/techniques/T1583/003/"
+]
+risk_score = 73
+rule_id = "9c7dc7a3-b2ab-41d5-9ebe-8e93ff3e1e7c"
+severity = "high"
+tags = [
+    "Data Source: Slack",
+    "Use Case: Threat Detection",
+    "Tactic: Initial Access",
+    "Resources: Investigation Guide"
+]
+timestamp_override = "event.ingested"
+type = "query"
+
+query = '''
+event.dataset:slack.audit and event.action:anomaly and slack.audit.details.reason:asn
+'''
+
+
+[[rule.threat]]
+framework = "MITRE ATT&CK"
+[[rule.threat.technique]]
+id = "T1583"
+name = "Acquire Infrastructure"
+reference = "https://attack.mitre.org/techniques/T1583/"
+[[rule.threat.technique.subtechnique]]
+id = "T1583.003"
+name = "Virtual Private Server"
+reference = "https://attack.mitre.org/techniques/T1583/003/"
+
+[rule.threat.tactic]
+id = "TA0001"
+name = "Initial Access"
+reference = "https://attack.mitre.org/tactics/TA0001/"
+
+[[rule.threat]]
+framework = "MITRE ATT&CK"
+[[rule.threat.technique]]
+id = "T1090"
+name = "Proxy"
+reference = "https://attack.mitre.org/techniques/T1090/"
+
+[rule.threat.tactic]
+id = "TA0005"
+name = "Defense Evasion"
+reference = "https://attack.mitre.org/tactics/TA0005/"
