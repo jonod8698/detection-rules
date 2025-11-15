@@ -1,0 +1,160 @@
+[metadata]
+creation_date = "2025/11/15"
+integration = ["slack"]
+maturity = "production"
+updated_date = "2025/11/15"
+
+[rule]
+author = ["Elastic"]
+description = """
+Detects when Slack identifies suspicious application or integration installations that may indicate malicious apps
+being deployed to gain persistence, steal credentials, or exfiltrate data. Malicious Slack apps can intercept messages,
+harvest credentials, and maintain long-term access to workspace data even after initial compromise is remediated.
+"""
+false_positives = [
+    "Legitimate business applications installed by authorized administrators",
+    "Sanctioned productivity tools or integrations",
+    "Development or testing environments where apps are frequently installed",
+    "Automated deployment of approved enterprise applications"
+]
+from = "now-60m"
+index = ["filebeat-*", "logs-slack*"]
+interval = "10m"
+language = "kuery"
+license = "Elastic License v2"
+name = "Slack Suspicious Application Installation Detected"
+note = """## Triage and analysis
+
+### Investigating Slack Suspicious Application Installation
+
+Malicious Slack applications represent a significant threat vector, providing attackers with persistent access to
+workspace communications, files, and user data. These apps can operate with legitimate OAuth tokens, making detection
+and remediation challenging. Suspicious app installations often indicate either compromised accounts or social
+engineering attacks.
+
+Common malicious app scenarios include:
+- Credential harvesting apps that intercept authentication data
+- Data exfiltration apps that monitor and copy messages and files
+- Command and control (C2) apps used for persistent backdoor access
+- Social engineering apps that impersonate legitimate services
+- Cryptojacking or resource abuse applications
+- Phishing apps that collect sensitive information from users
+
+#### Possible investigation steps
+
+- Identify the account that installed the app via `slack.audit.actor.user.id` and `slack.audit.actor.user.email`.
+- Review the `slack.audit.context.session_id` to understand the installation context.
+- Identify the specific application installed and its requested permissions.
+- Research the application's developer, origin, and reputation.
+- Determine what OAuth scopes and permissions were granted to the app.
+- Check if the app was installed from Slack's official app directory.
+- Review the app's privacy policy and terms of service.
+- Investigate what data the app has accessed since installation.
+- Check for similar app installations across other user accounts.
+- Review network connections made by the app.
+- Analyze the timing of installation relative to other suspicious activities.
+- Interview the installing user to determine if the action was intentional and authorized.
+
+### False positive analysis
+
+- Authorized business applications installed through proper approval processes.
+- Commonly used productivity tools like project management or CI/CD integrations.
+- Enterprise-approved applications deployed by IT or security teams.
+- Development environment apps used for testing or integration purposes.
+- Well-known applications from verified publishers with established reputations.
+
+### Response and remediation
+
+- **Immediate Actions:**
+  - Immediately remove the suspicious application from the workspace.
+  - Revoke all OAuth tokens and permissions granted to the app.
+  - Suspend the account that installed the app pending investigation.
+  - Document all app permissions and accessed data for impact assessment.
+  - Block the app developer and prevent reinstallation.
+
+- **Investigation Actions:**
+  - Audit all data accessed by the suspicious app since installation.
+  - Review app API calls and data requests in audit logs.
+  - Identify all users who interacted with or authorized the app.
+  - Check for data exfiltration indicators in network logs.
+  - Determine if credentials or tokens were compromised.
+  - Investigate the account used for installation for signs of compromise.
+
+- **Containment Actions:**
+  - Implement app approval workflows requiring security review.
+  - Restrict app installation permissions to authorized administrators.
+  - Enable additional logging for app installations and OAuth grants.
+  - Deploy monitoring for unusual app permissions or behaviors.
+  - Implement allowlisting for approved applications only.
+  - Review and remove unnecessary existing app integrations.
+
+- **Recovery and Prevention:**
+  - Conduct regular audits of installed applications and their permissions.
+  - Implement strict app vetting procedures before installation.
+  - Deploy security awareness training on malicious app threats.
+  - Establish and enforce an approved app catalog.
+  - Monitor app marketplace for impersonation attempts.
+  - Implement least-privilege principles for app OAuth scopes.
+  - Consider using Slack Enterprise Grid for advanced app controls.
+  - Regular review of third-party app security posture.
+
+- **Legal and Compliance Actions:**
+  - Notify legal team if data exfiltration or breach is suspected.
+  - Report malicious apps to Slack security team.
+  - Document incident for compliance and audit purposes.
+  - Comply with breach notification requirements if applicable.
+  - Consider reporting to law enforcement if criminal activity is confirmed.
+
+## Setup
+
+The Slack Fleet integration, Filebeat module, or similarly structured data is required. Slack's audit log anomaly
+detection must be configured to identify suspicious app installation patterns. The rule monitors for 'unexpected_app_install'
+in the `slack.audit.details.reason` field. App installation permissions should be restricted to administrators, and
+an app approval workflow should be implemented to complement this detection."""
+references = [
+    "https://docs.slack.dev/reference/audit-logs-api/anomalous-events-reference/",
+    "https://attack.mitre.org/techniques/T1098/",
+    "https://attack.mitre.org/techniques/T1528/",
+    "https://www.microsoft.com/en-us/security/blog/2023/12/28/financially-motivated-threat-actors-misusing-app-installer/"
+]
+risk_score = 73
+rule_id = "b9e4c3d2-6a7f-4e8d-9c1b-2a3f4e5d6c7b"
+severity = "high"
+tags = [
+    "Data Source: Slack",
+    "Use Case: Threat Detection",
+    "Tactic: Persistence",
+    "Tactic: Credential Access",
+    "Resources: Investigation Guide"
+]
+timestamp_override = "event.ingested"
+type = "query"
+
+query = '''
+event.dataset:slack.audit and event.action:anomaly and slack.audit.details.reason:unexpected_app_install
+'''
+
+
+[[rule.threat]]
+framework = "MITRE ATT&CK"
+[[rule.threat.technique]]
+id = "T1098"
+name = "Account Manipulation"
+reference = "https://attack.mitre.org/techniques/T1098/"
+
+[rule.threat.tactic]
+id = "TA0003"
+name = "Persistence"
+reference = "https://attack.mitre.org/tactics/TA0003/"
+
+[[rule.threat]]
+framework = "MITRE ATT&CK"
+[[rule.threat.technique]]
+id = "T1528"
+name = "Steal Application Access Token"
+reference = "https://attack.mitre.org/techniques/T1528/"
+
+[rule.threat.tactic]
+id = "TA0006"
+name = "Credential Access"
+reference = "https://attack.mitre.org/tactics/TA0006/"

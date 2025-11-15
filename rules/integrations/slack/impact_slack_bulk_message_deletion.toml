@@ -1,0 +1,158 @@
+[metadata]
+creation_date = "2025/11/15"
+integration = ["slack"]
+maturity = "production"
+updated_date = "2025/11/15"
+
+[rule]
+author = ["Elastic"]
+description = """
+Detects when Slack identifies bulk message deletion activities that may indicate an attempt to destroy evidence or
+cover tracks. This can indicate insider threats, data tampering, or attackers attempting to hide their activities
+after a breach. Large-scale message deletions are unusual in normal workspace operations and warrant investigation.
+"""
+false_positives = [
+    "Legitimate cleanup of test channels or development workspaces",
+    "Authorized data retention policy enforcement",
+    "Channel archival as part of project completion",
+    "Compliance-driven data removal following legal hold expiration"
+]
+from = "now-60m"
+index = ["filebeat-*", "logs-slack*"]
+interval = "10m"
+language = "kuery"
+license = "Elastic License v2"
+name = "Slack Bulk Message Deletion Detected"
+note = """## Triage and analysis
+
+### Investigating Slack Bulk Message Deletion
+
+Bulk message deletion in Slack workspaces is often an indicator of evidence destruction, attempting to hide malicious
+activities, or insider threats covering their tracks. While legitimate use cases exist, the pattern typically requires
+immediate investigation to determine intent and impact.
+
+Common scenarios for bulk message deletion include:
+- Insider threats destroying evidence before departure
+- Compromised accounts used to delete sensitive communications
+- Attackers covering tracks after data exfiltration
+- Malicious insiders hiding policy violations or fraud
+- Evidence tampering in response to investigations or audits
+
+#### Possible investigation steps
+
+- Identify the account performing deletions via `slack.audit.actor.user.id` and `slack.audit.actor.user.email`.
+- Review the `slack.audit.context.session_id` to understand the full scope of deletion activity.
+- Determine which channels, conversations, or message types were targeted for deletion.
+- Check the timeframe and velocity of deletions to assess the scope.
+- Review message retention logs and backups to identify what content was deleted.
+- Investigate if deletions targeted specific keywords, users, time periods, or topics.
+- Correlate with other suspicious activities from the same account or session.
+- Check for access from unusual locations, devices, or at unusual times.
+- Review the user's recent activity for other anomalous behavior.
+- Determine if the account has recently elevated privileges or access.
+- Check if multiple accounts participated in coordinated deletion activities.
+
+### False positive analysis
+
+- Routine cleanup of test channels or development environments.
+- Legitimate data retention policy enforcement through automation.
+- Project completion activities where channels are being archived.
+- Compliance-driven deletion following legal hold expiration.
+- Authorized cleanup of deprecated or obsolete channels.
+
+### Response and remediation
+
+- **Immediate Actions:**
+  - Suspend the account performing bulk deletions pending investigation.
+  - Preserve all available logs and audit trails related to the activity.
+  - Identify and preserve any message backups or archives.
+  - Document the scope and timeline of deletion activities.
+  - Review retention policies to determine data recovery options.
+
+- **Investigation Actions:**
+  - Attempt to recover deleted messages from backups or retention systems.
+  - Create an inventory of all deleted content, channels, and participants.
+  - Interview the account owner to determine if actions were authorized.
+  - Review access logs to confirm account ownership during deletions.
+  - Check for signs of account compromise (unusual login locations, sessions).
+  - Investigate the motive and intent behind the deletion activity.
+
+- **Containment Actions:**
+  - Implement or enforce message retention policies to prevent data loss.
+  - Review and restrict bulk deletion permissions for regular users.
+  - Enable additional logging and alerting for deletion activities.
+  - Consider implementing approval workflows for bulk operations.
+  - Restrict API access that could enable automated bulk deletions.
+
+- **Recovery and Prevention:**
+  - Restore deleted messages from backups if available and appropriate.
+  - Implement stricter access controls for message management.
+  - Deploy monitoring for bulk operations and unusual deletion patterns.
+  - Review and update data retention and protection policies.
+  - Provide security awareness training on insider threat indicators.
+  - Consider implementing immutable audit logs and backups.
+  - Regular audits of administrative actions and bulk operations.
+
+- **Legal and Compliance Actions:**
+  - Notify legal team if evidence destruction is suspected.
+  - Document the incident for compliance and audit purposes.
+  - Comply with regulatory requirements for data tampering incidents.
+  - Preserve all evidence for potential investigations.
+  - Report to appropriate authorities if criminal activity is suspected.
+
+## Setup
+
+The Slack Fleet integration, Filebeat module, or similarly structured data is required. Slack's audit log anomaly
+detection must be configured to identify bulk deletion patterns. The rule monitors for 'unexpected_bulk_delete'
+in the `slack.audit.details.reason` field. Message retention policies should be configured to enable recovery
+from bulk deletion incidents. Consider implementing approval workflows for bulk operations."""
+references = [
+    "https://docs.slack.dev/reference/audit-logs-api/anomalous-events-reference/",
+    "https://attack.mitre.org/techniques/T1485/",
+    "https://attack.mitre.org/techniques/T1070/004/"
+]
+risk_score = 73
+rule_id = "a8f3d2e1-5c4b-4a9d-8e7f-1b2c3d4e5f6a"
+severity = "high"
+tags = [
+    "Data Source: Slack",
+    "Use Case: Threat Detection",
+    "Tactic: Impact",
+    "Tactic: Defense Evasion",
+    "Resources: Investigation Guide"
+]
+timestamp_override = "event.ingested"
+type = "query"
+
+query = '''
+event.dataset:slack.audit and event.action:anomaly and slack.audit.details.reason:unexpected_bulk_delete
+'''
+
+
+[[rule.threat]]
+framework = "MITRE ATT&CK"
+[[rule.threat.technique]]
+id = "T1485"
+name = "Data Destruction"
+reference = "https://attack.mitre.org/techniques/T1485/"
+
+[rule.threat.tactic]
+id = "TA0040"
+name = "Impact"
+reference = "https://attack.mitre.org/tactics/TA0040/"
+
+[[rule.threat]]
+framework = "MITRE ATT&CK"
+[[rule.threat.technique]]
+id = "T1070"
+name = "Indicator Removal"
+reference = "https://attack.mitre.org/techniques/T1070/"
+[[rule.threat.technique.subtechnique]]
+id = "T1070.004"
+name = "File Deletion"
+reference = "https://attack.mitre.org/techniques/T1070/004/"
+
+[rule.threat.tactic]
+id = "TA0005"
+name = "Defense Evasion"
+reference = "https://attack.mitre.org/tactics/TA0005/"

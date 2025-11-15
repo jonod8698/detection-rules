@@ -1,0 +1,159 @@
+[metadata]
+creation_date = "2025/11/15"
+integration = ["slack"]
+maturity = "production"
+updated_date = "2025/11/15"
+
+[rule]
+author = ["Elastic"]
+description = """
+Detects when Slack identifies excessive file or data sharing with external domains or workspaces. This pattern often
+indicates data exfiltration, insider threats, or compromised accounts being used to leak sensitive information to
+unauthorized parties. External sharing at scale is unusual and may represent intentional data theft or espionage.
+"""
+false_positives = [
+    "Legitimate collaboration with external partners or vendors",
+    "Customer support activities involving file sharing",
+    "Marketing or sales teams sharing materials with prospects",
+    "Authorized file distribution for events or training"
+]
+from = "now-60m"
+index = ["filebeat-*", "logs-slack*"]
+interval = "10m"
+language = "kuery"
+license = "Elastic License v2"
+name = "Slack Excessive External File Sharing Detected"
+note = """## Triage and analysis
+
+### Investigating Slack Excessive External Sharing
+
+Excessive sharing of files and data to external domains or workspaces can indicate data exfiltration attempts, insider
+threats, or compromised accounts being leveraged for information theft. While external collaboration is common in modern
+business, patterns of excessive or unusual external sharing require investigation to prevent data loss.
+
+Common scenarios for excessive external sharing include:
+- Insider threats exfiltrating intellectual property before departure
+- Compromised accounts used to leak sensitive data to competitors
+- Corporate espionage and trade secret theft
+- Accidental over-sharing due to misconfigured permissions
+- Social engineering attacks resulting in data disclosure
+- Malicious insiders selling confidential information
+
+#### Possible investigation steps
+
+- Identify the account performing external sharing via `slack.audit.actor.user.id` and `slack.audit.actor.user.email`.
+- Review the `slack.audit.context.session_id` to understand the full scope of sharing activity.
+- Identify the external recipients, domains, and workspaces receiving the shared data.
+- Catalog all files and data shared externally during the anomalous period.
+- Classify the shared data by sensitivity level and regulatory requirements.
+- Check the timing and velocity of external sharing activities.
+- Review if sharing targeted specific file types, projects, or data categories.
+- Correlate with other suspicious activities from the same account.
+- Investigate the relationship between the organization and external recipients.
+- Check for signs of account compromise (unusual login locations, sessions).
+- Review the user's role and typical external sharing patterns.
+- Examine if shared files contained PII, trade secrets, or classified data.
+
+### False positive analysis
+
+- Regular collaboration with known partners, vendors, or customers.
+- Customer support teams legitimately sharing files with external users.
+- Sales and marketing teams distributing materials to prospects.
+- Event organizers sharing materials with external participants.
+- Authorized cross-organization projects with established partners.
+
+### Response and remediation
+
+- **Immediate Actions:**
+  - Suspend the account performing excessive external sharing.
+  - Review and revoke external sharing links for sensitive files.
+  - Block sharing to suspicious external domains or workspaces.
+  - Document all externally shared content for impact assessment.
+  - Preserve audit logs and sharing evidence.
+
+- **Investigation Actions:**
+  - Create an inventory of all externally shared files and data.
+  - Classify shared data by sensitivity and regulatory requirements.
+  - Determine if shared data included PII, trade secrets, or confidential information.
+  - Investigate the external recipients and their relationship to the organization.
+  - Review if external parties downloaded or accessed the shared content.
+  - Check for data exfiltration to personal accounts or cloud storage.
+  - Interview the account owner to determine if sharing was authorized.
+
+- **Containment Actions:**
+  - Implement or enforce external sharing policies and restrictions.
+  - Deploy data loss prevention (DLP) controls for file sharing.
+  - Enable additional logging and alerts for external sharing activities.
+  - Review and restrict external collaboration permissions.
+  - Implement approval workflows for sharing with external domains.
+  - Consider disabling external sharing for high-sensitivity channels.
+
+- **Recovery and Prevention:**
+  - Audit and update external sharing policies and permissions.
+  - Implement domain allowlisting for approved external collaboration.
+  - Deploy behavioral analytics to detect unusual sharing patterns.
+  - Provide security awareness training on data protection and insider threats.
+  - Regular audits of external sharing activities and recipients.
+  - Implement file classification and automatic DLP enforcement.
+  - Consider implementing watermarking for sensitive documents.
+  - Review and update data handling and retention policies.
+
+- **Legal and Compliance Actions:**
+  - Notify legal team of potential data exfiltration or breach.
+  - Attempt to recall or delete externally shared sensitive data.
+  - Comply with breach notification requirements if applicable.
+  - Document the incident for compliance and audit purposes.
+  - Consider legal action if intellectual property theft is confirmed.
+  - Report to appropriate authorities if criminal activity is suspected.
+
+## Setup
+
+The Slack Fleet integration, Filebeat module, or similarly structured data is required. Slack's audit log anomaly
+detection must be configured to identify excessive external sharing patterns. The rule monitors for 'unexpected_external_sharing'
+in the `slack.audit.details.reason` field. External sharing policies and DLP controls should be configured to
+complement this detection. Consider implementing domain allowlisting for approved external collaboration."""
+references = [
+    "https://docs.slack.dev/reference/audit-logs-api/anomalous-events-reference/",
+    "https://attack.mitre.org/techniques/T1537/",
+    "https://attack.mitre.org/techniques/T1048/"
+]
+risk_score = 73
+rule_id = "c7d8e9f0-1a2b-3c4d-5e6f-7a8b9c0d1e2f"
+severity = "high"
+tags = [
+    "Data Source: Slack",
+    "Use Case: Data Loss Prevention",
+    "Tactic: Exfiltration",
+    "Resources: Investigation Guide"
+]
+timestamp_override = "event.ingested"
+type = "query"
+
+query = '''
+event.dataset:slack.audit and event.action:anomaly and slack.audit.details.reason:unexpected_external_sharing
+'''
+
+
+[[rule.threat]]
+framework = "MITRE ATT&CK"
+[[rule.threat.technique]]
+id = "T1537"
+name = "Transfer Data to Cloud Account"
+reference = "https://attack.mitre.org/techniques/T1537/"
+
+[rule.threat.tactic]
+id = "TA0010"
+name = "Exfiltration"
+reference = "https://attack.mitre.org/tactics/TA0010/"
+
+[[rule.threat]]
+framework = "MITRE ATT&CK"
+[[rule.threat.technique]]
+id = "T1048"
+name = "Exfiltration Over Alternative Protocol"
+reference = "https://attack.mitre.org/techniques/T1048/"
+
+[rule.threat.tactic]
+id = "TA0010"
+name = "Exfiltration"
+reference = "https://attack.mitre.org/tactics/TA0010/"

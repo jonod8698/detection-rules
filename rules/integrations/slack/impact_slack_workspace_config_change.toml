@@ -1,0 +1,175 @@
+[metadata]
+creation_date = "2025/11/15"
+integration = ["slack"]
+maturity = "production"
+updated_date = "2025/11/15"
+
+[rule]
+author = ["Elastic"]
+description = """
+Detects when Slack identifies suspicious or unauthorized workspace configuration changes that may indicate privilege
+escalation, persistence establishment, or attempts to weaken security controls. Workspace configuration changes can
+disable security features, modify retention policies, or alter access controls, enabling attackers to maintain access
+and evade detection.
+"""
+false_positives = [
+    "Legitimate administrative changes by authorized workspace administrators",
+    "Scheduled configuration updates or policy enforcement",
+    "Onboarding or offboarding automation workflows",
+    "Compliance-driven security policy updates"
+]
+from = "now-60m"
+index = ["filebeat-*", "logs-slack*"]
+interval = "10m"
+language = "kuery"
+license = "Elastic License v2"
+name = "Slack Workspace Configuration Change Detected"
+note = """## Triage and analysis
+
+### Investigating Slack Workspace Configuration Changes
+
+Workspace configuration changes in Slack can have significant security implications, affecting authentication policies,
+data retention, access controls, and security monitoring capabilities. Suspicious configuration changes often indicate
+compromised administrator accounts or insider threats attempting to establish persistence or weaken defenses.
+
+Common malicious configuration change scenarios include:
+- Disabling multi-factor authentication requirements
+- Weakening password policies or session timeout settings
+- Modifying data retention to delete audit logs or evidence
+- Changing workspace access controls to grant unauthorized access
+- Disabling security notifications or audit logging
+- Adding external authentication providers for backdoor access
+- Modifying IP allowlists to enable access from attacker infrastructure
+
+#### Possible investigation steps
+
+- Identify the account making configuration changes via `slack.audit.actor.user.id` and `slack.audit.actor.user.email`.
+- Review the `slack.audit.context.session_id` to understand the full scope of configuration activity.
+- Determine exactly what configuration settings were modified.
+- Assess the security impact of each configuration change.
+- Check if multiple configuration changes were made in succession.
+- Review the timing of changes relative to other suspicious activities.
+- Investigate if changes align with scheduled maintenance or known projects.
+- Check for signs of account compromise (unusual login locations, sessions).
+- Review recent privilege escalation activities for the account.
+- Determine who has administrator privileges and if they're appropriate.
+- Check if configuration changes disabled security controls or monitoring.
+- Investigate if changes modified authentication or access requirements.
+
+### False positive analysis
+
+- Scheduled administrative maintenance by authorized workspace administrators.
+- Legitimate security policy updates to improve compliance posture.
+- Configuration changes following security assessments or audits.
+- Automated compliance enforcement or policy deployment.
+- Onboarding/offboarding workflows that modify user settings.
+
+### Response and remediation
+
+- **Immediate Actions:**
+  - Suspend the account that made suspicious configuration changes.
+  - Immediately revert unauthorized or malicious configuration changes.
+  - Review all recent configuration changes for additional tampering.
+  - Enable or re-enable any disabled security controls.
+  - Document all configuration changes for investigation.
+  - Verify that audit logging and retention settings are intact.
+
+- **Investigation Actions:**
+  - Audit all workspace configuration settings for unauthorized changes.
+  - Review access logs to confirm account ownership during changes.
+  - Interview the account owner to determine if actions were authorized.
+  - Check for signs of account compromise or credential theft.
+  - Investigate what security controls may have been weakened or disabled.
+  - Determine if changes enabled unauthorized access or persistence.
+  - Review audit logs for activities enabled by configuration changes.
+
+- **Containment Actions:**
+  - Implement change approval workflows for configuration modifications.
+  - Restrict workspace configuration permissions to minimal administrators.
+  - Enable additional logging and alerting for configuration changes.
+  - Implement configuration baselines and drift detection.
+  - Deploy monitoring for security control modifications.
+  - Consider implementing privileged access management (PAM) for admin accounts.
+
+- **Recovery and Prevention:**
+  - Restore all workspace configurations to secure baseline settings.
+  - Implement configuration management and version control.
+  - Regular audits of workspace settings and administrator actions.
+  - Deploy security awareness training for administrators.
+  - Implement least-privilege principles for administrative access.
+  - Consider using Slack Enterprise Grid for advanced security controls.
+  - Enable SSO and enforce MFA for all administrator accounts.
+  - Implement immutable audit logging to prevent tampering.
+  - Regular review of authentication and access control policies.
+
+- **Legal and Compliance Actions:**
+  - Notify legal team if security controls were intentionally weakened.
+  - Document incident for compliance and audit purposes.
+  - Assess regulatory impact if data retention was modified.
+  - Report to appropriate authorities if malicious intent is confirmed.
+  - Review compliance with data protection regulations.
+
+## Setup
+
+The Slack Fleet integration, Filebeat module, or similarly structured data is required. Slack's audit log anomaly
+detection must be configured to identify suspicious workspace configuration changes. The rule monitors for 'unexpected_workspace_change'
+in the `slack.audit.details.reason` field. Configuration change approval workflows and baselines should be established
+to complement this detection. Consider implementing privileged access management for administrator accounts."""
+references = [
+    "https://docs.slack.dev/reference/audit-logs-api/anomalous-events-reference/",
+    "https://attack.mitre.org/techniques/T1562/",
+    "https://attack.mitre.org/techniques/T1098/"
+]
+risk_score = 73
+rule_id = "d8e9f0a1-2b3c-4d5e-6f7a-8b9c0d1e2f3a"
+severity = "high"
+tags = [
+    "Data Source: Slack",
+    "Use Case: Threat Detection",
+    "Tactic: Impact",
+    "Tactic: Defense Evasion",
+    "Resources: Investigation Guide"
+]
+timestamp_override = "event.ingested"
+type = "query"
+
+query = '''
+event.dataset:slack.audit and event.action:anomaly and slack.audit.details.reason:unexpected_workspace_change
+'''
+
+
+[[rule.threat]]
+framework = "MITRE ATT&CK"
+[[rule.threat.technique]]
+id = "T1098"
+name = "Account Manipulation"
+reference = "https://attack.mitre.org/techniques/T1098/"
+
+[rule.threat.tactic]
+id = "TA0003"
+name = "Persistence"
+reference = "https://attack.mitre.org/tactics/TA0003/"
+
+[[rule.threat]]
+framework = "MITRE ATT&CK"
+[[rule.threat.technique]]
+id = "T1562"
+name = "Impair Defenses"
+reference = "https://attack.mitre.org/techniques/T1562/"
+
+[rule.threat.tactic]
+id = "TA0005"
+name = "Defense Evasion"
+reference = "https://attack.mitre.org/tactics/TA0005/"
+
+[[rule.threat]]
+framework = "MITRE ATT&CK"
+[[rule.threat.technique]]
+id = "T1489"
+name = "Service Stop"
+reference = "https://attack.mitre.org/techniques/T1489/"
+
+[rule.threat.tactic]
+id = "TA0040"
+name = "Impact"
+reference = "https://attack.mitre.org/tactics/TA0040/"
