@@ -1334,6 +1334,9 @@ class TOMLRuleContents(BaseRuleContents, MarshmallowDataclassMixin):
     def _add_known_nulls(self, rule_dict: dict[str, Any]) -> dict[str, Any]:
         """Add known nulls to the rule."""
         # Note this is primarily as a stopgap until add support for Rule Actions
+        # System actions (e.g., .cases) do not support the frequency field
+        SYSTEM_ACTION_TYPES = {".cases"}
+
         for pair in definitions.KNOWN_NULL_ENTRIES:
             for compound_key, sub_key in pair.items():
                 value = get_nested_value(rule_dict, compound_key)
@@ -1341,7 +1344,9 @@ class TOMLRuleContents(BaseRuleContents, MarshmallowDataclassMixin):
                     items_to_update: list[dict[str, Any]] = [
                         item
                         for item in value  # type: ignore[reportUnknownVariableType]
-                        if isinstance(item, dict) and get_nested_value(item, sub_key) is None
+                        if isinstance(item, dict)
+                        and get_nested_value(item, sub_key) is None
+                        and item.get("action_type_id") not in SYSTEM_ACTION_TYPES
                     ]
                     for item in items_to_update:
                         set_nested_value(item, sub_key, None)
